@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radio Tracker Data Visualization</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin-bottom: 50px;
+        }
+        .artist-chart-container {
+            width: 100%;
+            height: 600px;
+            margin-bottom: 50px;
+        }
+        .history-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .history-item {
+            border-bottom: 1px solid #ddd;
+            padding: 10px;
+        }
+    </style>
+    <script>
+        async function fetchData() {
+            const response = await fetch('/api/data');
+            const data = await response.json();
+            return data;
+        }
+
+        async function fetchHistory(limit) {
+            const response = await fetch(`/api/history?limit=${limit}`);
+            const data = await response.json();
+            return data.historyData;
+        }
+
+        function calculateSongPercentages(artist, songData) {
+            const artistSongs = songData.filter(item => item.artist === artist);
+            const totalSongCount = artistSongs.reduce((sum, item) => sum + item.count, 0);
+            return artistSongs.map(item => ({
+                song: item.song,
+                percentage: ((item.count / totalSongCount) * 100).toFixed(2)
+            }));
+        }
+
+        function updateCharts(data) {
+            const artistData = data.artistData;
+            const songData = data.songData;
+
+            // Define shades of blues and greys for the charts
+            const colors = [
+                '#6BAED6', '#4292C6', '#2171B5', '#08519C', '#08306B', // Blues
+                '#9E9E9E', '#757575', '#616161', '#424242', '#212121'  // Greys
+            ];
+
+            // Artist data
+            const artistLabels = artistData.map(item => item.artist);
+            const artistCounts = artistData.map(item => item.count);
+
+            const artistCtx = document.getElementById('artistChart').getContext('2d');
+            const artistChart = new Chart(artistCtx, {
+                type: 'pie',
+                data: {
+                    labels: artistLabels,
+                    datasets: [{
+                        data: artistCounts,
+                        backgroundColor: colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Artist Percentage of Entry Logs'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(tooltipItem) {
+                                    const artist = artistLabels[tooltipItem.dataIndex];
+                                    const songPercentages = calculateSongPercentages(artist, songData);
+                                    const songList = songPercentages.map(item => `${item.song}: ${item.percentage}%`).join('\n');
+                                    return `${artist}\n${songList}`;
+                                }
+                            }
+                        }
+                    },
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const artistIndex = elements[0].index;
+                            const artist = artistLabels[artistIndex];
+                            document.getElementById(artist.replace(/\s+/g, '')).scrollIntoView({ behavior: 'smooth' });
+                        }
+                    }
+                }
+            });
+
+            // Song breakdown data
+            const songBreakdownContainer = document.getElementById('songBreakdown');
+            songBreakdownContainer.innerHTML = ''; // Clear previous charts
+
+            const groupedSongData = songData.reduce((acc, item) => {
+                acc[item.artist] = acc[item.artist] || [];
+                acc[item.artist].push(item);
+                return acc;
+            }, {});
+
+            Object.keys(groupedSongData).forEach(artist => {
+                const artistSongs = groupedSongData[artist];
+                const songLabels = artistSongs.map(item => item.song);
+                const songCounts = artistSongs.map(item => item.count);
+
+                const artistId = artist.replace(/\s+/g, '');
+                const artistHeader = document.createElement('h2');
+                artistHeader.id = artistId;
+                artistHeader.textContent = `${artist} Song Breakdown`;
+                songBreakdownContainer.appendChild(artistHeader);
+
+                const canvasContainer = document.createElement('div');
+                canvasContainer.classList.add('chart-container');
+                const canvas = document.createElement('canvas');
+                canvasContainer.appendChild(canvas);
+                songBreakdownContainer.appendChild(canvasContainer);
+
+                const songCtx = canvas.getContext('2d');
+                new Chart(songCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: songLabels,
+                        datasets: [{
+                            data: songCounts,
+                            backgroundColor: colors
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: `${artist} Song Breakdown`
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        function updateHistory(historyData) {
+            const historyContainer = document.getElementById('songHistory');
+            historyContainer.innerHTML = ''; // Clear previous history
+
+            historyData.forEach(item => {
+                const historyItem = document.createElement('div');
+                historyItem.classList.add('history-item');
+                historyItem.innerHTML = `<strong>${item.timestamp}</strong>: ${item.artist} - ${item.song}`;
+                historyContainer.appendChild(historyItem);
+            });
+        }
+
+        async function refreshData() {
+            const data = await fetchData();
+            updateCharts(data);
+
+            const limit = document.getElementById('historyLimit').value;
+            const historyData = await fetchHistory(limit);
+            updateHistory(historyData);
+
+            setTimeout(refreshData, 60000); // Refresh every 60 seconds
+        }
+
+        window.onload = refreshData;
+    </script>
+</head>
+<body class="container">
+    <h1 class="text-center my-4">Radio Tracker Data Visualization</h1>
+    <div class="row">
+        <div class="col-md-8">
+            <div class="artist-chart-container">
+                <canvas id="artistChart"></canvas>
+            </div>
+            <div id="songBreakdown"></div>
+        </div>
+        <div class="col-md-4">
+            <h2>Song History</h2>
+            <label for="historyLimit">Number of Entries:</label>
+            <select id="historyLimit" onchange="refreshData()">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+            </select>
+            <div class="history-container" id="songHistory"></div>
+        </div>
+    </div>
+</body>
+</html>
