@@ -57,12 +57,11 @@ def get_now_playing():
         print(f"Error: {e}")
         return None, None
 
-def track_songs(duration=3600, interval=60):
-    end_time = time.time() + duration
+def track_songs(interval=60):
     last_song = None
     last_artist = None
 
-    while time.time() < end_time:
+    while True:
         song, artist = get_now_playing()
         if song and artist:
             if song != last_song or artist != last_artist:
@@ -77,10 +76,12 @@ def track_songs(duration=3600, interval=60):
         else:
             print("Could not retrieve song and artist information.")
         time.sleep(interval)
-    
-    print("Tracking complete. Data saved to tracked_songs.db")
 
 if __name__ == "__main__":
-    track_songs()
-    driver.quit()
-    conn.close()
+    try:
+        track_songs()
+    except KeyboardInterrupt:
+        print("Tracking stopped by user.")
+    finally:
+        driver.quit()
+        conn.close()
