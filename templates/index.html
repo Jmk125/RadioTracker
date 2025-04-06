@@ -39,12 +39,25 @@
             return data.historyData;
         }
 
+        async function fetchTopArtists() {
+            const response = await fetch('/api/top_artists');
+            const data = await response.json();
+            return data.topArtistsData;
+        }
+
+        async function fetchSummary() {
+            const response = await fetch('/api/summary');
+            const data = await response.json();
+            return data.summaryData;
+        }
+
         function calculateSongPercentages(artist, songData) {
             const artistSongs = songData.filter(item => item.artist === artist);
             const totalSongCount = artistSongs.reduce((sum, item) => sum + item.count, 0);
             return artistSongs.map(item => ({
                 song: item.song,
-                percentage: ((item.count / totalSongCount) * 100).toFixed(2)
+                percentage: ((item.count / totalSongCount) * 100).toFixed(2),
+                count: item.count
             }));
         }
 
@@ -76,7 +89,7 @@
                     responsive: true,
                     plugins: {
                         legend: {
-                            position: 'top',
+                            display: false, // Hide the legend
                         },
                         title: {
                             display: true,
@@ -87,7 +100,7 @@
                                 label: function(tooltipItem) {
                                     const artist = artistLabels[tooltipItem.dataIndex];
                                     const songPercentages = calculateSongPercentages(artist, songData);
-                                    const songList = songPercentages.map(item => `${item.song}: ${item.percentage}%`).join('\n');
+                                    const songList = songPercentages.map(item => `${item.song}: ${item.percentage}% (${item.count})`).join('\n');
                                     return `${artist}\n${songList}`;
                                 }
                             }
@@ -149,6 +162,16 @@
                             title: {
                                 display: true,
                                 text: `${artist} Song Breakdown`
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(tooltipItem) {
+                                        const song = songLabels[tooltipItem.dataIndex];
+                                        const count = songCounts[tooltipItem.dataIndex];
+                                        const percentage = ((count / artistSongs.reduce((sum, item) => sum + item.count, 0)) * 100).toFixed(2);
+                                        return `${song}: ${percentage}% (${count})`;
+                                    }
+                                }
                             }
                         }
                     }
@@ -168,6 +191,29 @@
             });
         }
 
+        function updateTopArtists(topArtistsData) {
+            const topArtistsContainer = document.getElementById('topArtists');
+            topArtistsContainer.innerHTML = ''; // Clear previous top artists
+
+            let lastCount = null;
+
+            topArtistsData.forEach((item, index) => {
+                const artistItem = document.createElement('div');
+                artistItem.classList.add('top-artist-item');
+                artistItem.innerHTML = `${item.artist}: ${item.count} plays`;
+                topArtistsContainer.appendChild(artistItem);
+
+                lastCount = item.count;
+            });
+        }
+
+        function updateSummary(summaryData) {
+            document.getElementById('totalPlays').textContent = summaryData.total_plays;
+            document.getElementById('totalUniqueSongs').textContent = summaryData.total_unique_songs;
+            document.getElementById('totalBands').textContent = summaryData.total_bands;
+            document.getElementById('totalHours').textContent = summaryData.total_hours;
+        }
+
         async function refreshData() {
             const data = await fetchData();
             updateCharts(data);
@@ -175,6 +221,12 @@
             const limit = document.getElementById('historyLimit').value;
             const historyData = await fetchHistory(limit);
             updateHistory(historyData);
+
+            const topArtistsData = await fetchTopArtists();
+            updateTopArtists(topArtistsData);
+
+            const summaryData = await fetchSummary();
+            updateSummary(summaryData);
 
             setTimeout(refreshData, 60000); // Refresh every 60 seconds
         }
@@ -193,6 +245,12 @@
         </div>
         <div class="col-md-4">
             <h2>Song History</h2>
+            <div>
+                <strong>Total Plays Recorded:</strong> <span id="totalPlays"></span><br>
+                <strong>Total No. of Songs:</strong> <span id="totalUniqueSongs"></span><br>
+                <strong>Total Bands:</strong> <span id="totalBands"></span><br>
+                <strong>Total Hours Logged:</strong> <span id="totalHours"></span>
+            </div>
             <label for="historyLimit">Number of Entries:</label>
             <select id="historyLimit" onchange="refreshData()">
                 <option value="10">10</option>
@@ -200,6 +258,8 @@
                 <option value="50">50</option>
             </select>
             <div class="history-container" id="songHistory"></div>
+            <h2>Top 20 Most Often Played Artists</h2>
+            <div id="topArtists" class="mt-3"></div>
         </div>
     </div>
 </body>
