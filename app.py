@@ -53,6 +53,19 @@ def fetch_top_artists(limit=20):
     conn.close()
     return df_top_artists
 
+def fetch_top_songs(limit=20):
+    conn = sqlite3.connect(DB_PATH)
+    query_top_songs = f'''
+        SELECT artist, song, COUNT(*) as count
+        FROM songs
+        GROUP BY artist, song
+        ORDER BY count DESC
+        LIMIT {limit}
+    '''
+    df_top_songs = pd.read_sql(query_top_songs, conn)
+    conn.close()
+    return df_top_songs
+
 def fetch_summary():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -110,6 +123,12 @@ def top_artists():
     df_top_artists = fetch_top_artists()
     top_artists_data = df_top_artists.to_dict(orient='records')
     return jsonify({'topArtistsData': top_artists_data})
+
+@app.route('/api/top_songs')
+def top_songs():
+    df_top_songs = fetch_top_songs()
+    top_songs_data = df_top_songs.to_dict(orient='records')
+    return jsonify({'topSongsData': top_songs_data})
 
 @app.route('/api/summary')
 def summary():
