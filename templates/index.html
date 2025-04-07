@@ -18,11 +18,14 @@
             height: 600px;
             margin-bottom: 50px;
         }
-        .history-container {
-            max-height: 600px;
+        .history-container, .top-artists-container, .top-songs-container {
+            max-height: 300px;
             overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            padding: 10px;
         }
-        .history-item {
+        .history-item, .top-artist-item, .top-song-item {
             border-bottom: 1px solid #ddd;
             padding: 10px;
         }
@@ -44,6 +47,12 @@
             const response = await fetch('/api/top_artists');
             const data = await response.json();
             return data.topArtistsData;
+        }
+
+        async function fetchTopSongs() {
+            const response = await fetch('/api/top_songs');
+            const data = await response.json();
+            return data.topSongsData;
         }
 
         async function fetchSummary() {
@@ -208,6 +217,18 @@
             });
         }
 
+        function updateTopSongs(topSongsData) {
+            const topSongsContainer = document.getElementById('topSongs');
+            topSongsContainer.innerHTML = ''; // Clear previous top songs
+
+            topSongsData.forEach(item => {
+                const songItem = document.createElement('div');
+                songItem.classList.add('top-song-item');
+                songItem.innerHTML = `${item.song} by ${item.artist}: ${item.count} plays`;
+                topSongsContainer.appendChild(songItem);
+            });
+        }
+
         function updateSummary(summaryData) {
             document.getElementById('totalPlays').textContent = summaryData.total_plays;
             document.getElementById('totalUniqueSongs').textContent = summaryData.total_unique_songs;
@@ -225,6 +246,9 @@
 
             const topArtistsData = await fetchTopArtists();
             updateTopArtists(topArtistsData);
+
+            const topSongsData = await fetchTopSongs();
+            updateTopSongs(topSongsData);
 
             const summaryData = await fetchSummary();
             updateSummary(summaryData);
@@ -260,7 +284,9 @@
             </select>
             <div class="history-container" id="songHistory"></div>
             <h2>Top 20 Most Often Played Artists</h2>
-            <div id="topArtists" class="mt-3"></div>
+            <div id="topArtists" class="top-artists-container"></div>
+            <h2>Top 20 Most Played Songs</h2>
+            <div id="topSongs" class="top-songs-container"></div>
         </div>
     </div>
 </body>
