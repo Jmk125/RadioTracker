@@ -6,6 +6,7 @@
     <title>Radio Tracker Data Visualization</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <style>
         .chart-container {
             width: 100%;
@@ -97,11 +98,10 @@
                         },
                         tooltip: {
                             callbacks: {
-                                label: function(tooltipItem) {
-                                    const artist = artistLabels[tooltipItem.dataIndex];
+                                label: function(context) {
+                                    const artist = artistLabels[context.dataIndex];
                                     const songPercentages = calculateSongPercentages(artist, songData);
-                                    const songList = songPercentages.map(item => `${item.song}: ${item.percentage}% (${item.count})`).join('\n');
-                                    return `${artist}\n${songList}`;
+                                    return [`${artist}`].concat(songPercentages.map(item => `${item.song}: ${item.percentage}% (${item.count})`));
                                 }
                             }
                         }
@@ -128,7 +128,7 @@
 
             Object.keys(groupedSongData).forEach(artist => {
                 const artistSongs = groupedSongData[artist];
-                const songLabels = artistSongs.map(item => item.song);
+                const songLabels = artistSongs.map(item => `${item.song} (${item.count})`);
                 const songCounts = artistSongs.map(item => item.count);
 
                 const artistId = artist.replace(/\s+/g, '');
@@ -157,6 +157,7 @@
                         responsive: true,
                         plugins: {
                             legend: {
+                                display: true, // Display the legend
                                 position: 'top',
                             },
                             title: {
